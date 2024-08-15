@@ -77,11 +77,11 @@ pip3 install jinja2
 ```
 
 - 主要参数  (myconfig.json)
-- -`testspeed`：是否开启直播源连接速度测试，默认关闭（开启可能增加耗时与资源占用）
+- -"testspeed"：是否开启直播源连接速度测试，默认关闭（开启可能增加耗时与资源占用）
     - 0:关闭
     - 1:开启
     - \>100:开启并且筛选分辨率低于该数字的作为无效来源
-- -`ctype`:检查类型（可以组合）
+- -"ctype":检查类型（可以组合）
     - 1 （0x01）：检查本地playlists文件夹下的.txt,.m3u文件
     - 2 （0x02）：检查外部文件，对应checkfile_list参数
     - 4 （0x04）：检查上次检查的节目源（保存在sqlite3数据库中）
@@ -89,11 +89,11 @@ pip3 install jinja2
     - 16 （0x10）：只检查在预设清单(sortlists.xlsx)里面tvorder<9999的节目,除此之外，允许关键字清单的节目（参数keywords）加入。该功能比较有用，大多数人只要看cctv和各大卫视节目外，还有就是本地的其他节目。那么sortlists里面保存所有cctv和各大卫视节目名称外，本地其他节目可用keywords包括，比如关键字['赣州']。
     - 以上功能可以组合，比如ctype=0x1+0x2+0x10=19，表明同时检查本地/外部/预设清单过滤的节目。
 
-- -`checkfile_list`:外部文件地址清单。（ctype包含0x2时需要）
+- -"checkfile_list":外部文件地址清单。（ctype包含0x2时需要）
     - 可以是http/https地址
     - 也可以是本地文件地址
 
-- -`otype`:检测结果输出格式，输出后需要拷贝到其他地方请搭配sendfile_list参数使用
+- -"otype":检测结果输出格式，输出后需要拷贝到其他地方请搭配sendfile_list参数使用
     - 0 (0x00): 不生成任何输出文件。
     - 1 (0x01): 生成 diyp 格式的文件（自定义播放器格式）。
     - 2 (0x02): 生成 txt 格式的文件（文本格式）。
@@ -111,9 +111,13 @@ pip3 install jinja2
     - 14 (0x0E): 生成 txt 和 m3u 格式的文件，并进入测试模式。
     - 15 (0x0F): 生成 diyp、txt 和 m3u 格式的文件，并进入测试模式。
 
-- -`sendfile_list`:检测结果同步拷贝到目的地列表
+- -"sendfile_list":检测结果同步拷贝到目的地列表
     - 文件列表，长度与次序都必须与otype参数一致，如果某个格式不需要拷贝，则设为""
-  
+
+- -"iptv_server_mode":生成https://github.com/AmbitiousJun/iptv-server使用的iptv-server.yml文件
+    - no:关闭（默认）
+    - yes:开启
+
 - -以下参数可选
   
   - -`max_check_count`：最大检测节目数量，默认是2000个
