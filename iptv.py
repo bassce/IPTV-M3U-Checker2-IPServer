@@ -369,7 +369,7 @@ class Iptv(object):
         self.DB.insert(self.__dbdata)
             
     #@property
-    def output(self,ctype=0x01):
+    def output(self,ctype=0x01,iptv_server_mode="no"):
         '''#输出检测结果
             oytpe:文件格式,包括：
                        0x01(001b):diyp播放器（缺省）
@@ -377,6 +377,7 @@ class Iptv(object):
                        0x04(100b):txt标准格式
                        0x08:测试模式。
                        可以是以上混合
+            iptv_server_mode: 控制是否生成iptv-server.yml文件（yes/no）
         '''
         #sql = "SELECT * FROM %s WHERE delay='%d' " % (self.DB.table,self.delay_threshold)
         #result = self.DB.query(sql)
@@ -461,6 +462,18 @@ class Iptv(object):
                         line=f'#EXTINF:-1 tvg-name="{prev_uniquename}" {tvlogo} group-title="{tvgroup}",{prev_uniquename}\n'
                         file.write(line +df['url'][i] + '\n')
                     fnamelist.append(fname)
+
+            # 新增功能：根据 tvg-name 聚合播放地址
+            if iptv_server_mode.lower() == "yes":
+                fname_aggregate = "./%s/iptv-server.yml" % self.output_file
+                with open(fname_aggregate, 'w', encoding='utf-8') as file:
+                    grouped = df.groupby('uniquename')['url'].apply(list)
+                    for name, urls in grouped.items():
+                        file.write(f'"{name}":\n')
+                        for url in urls:
+                            file.write(f"  - {url}\n")
+                        file.write('\n')
+                    fnamelist.append(fname_aggregate)
 
             out = (
                     df.style
