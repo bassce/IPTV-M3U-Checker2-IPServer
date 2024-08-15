@@ -114,7 +114,7 @@ pip3 install jinja2
 - -"sendfile_list":检测结果同步拷贝到目的地列表
     - 文件列表，长度与次序都必须与otype参数一致，如果某个格式不需要拷贝，则设为""
 
-- -"iptv_server_mode":生成https://github.com/AmbitiousJun/iptv-server使用的iptv-server.yml文件
+- -"iptv_server_mode":生成https://github.com/AmbitiousJun/iptv-server 使用的iptv-server.yml文件
     - no:关闭（默认）
     - yes:开启
 
