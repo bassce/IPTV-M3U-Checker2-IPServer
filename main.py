@@ -54,7 +54,7 @@ if __name__ == '__main__':
     myList=iptv.getPlaylist(ctype=parms['ctype'],checkfile_list=parms['checkfile_list'],keywords=parms['keywords'])
 
     iptv.runcheck(myList,bSavedb=(parms['ctype']&0x08==0),bTestSpeed=parms['testspeed'])
-    fnames=iptv.output(parms['otype'])   #diyp 0x01|m3u 0x02|标准txt 0x04 |测试 0x08
+    fnames=iptv.output(parms['otype'], iptv_server_mode=parms.get('iptv_server_mode', 'no'))   #diyp 0x01|m3u 0x02|标准txt 0x04 |测试 0x08
     iptv.sendit(fnames,parms['sendfile_list'])
     print('结束.....%s秒'%str(time.time()-time1))
    
