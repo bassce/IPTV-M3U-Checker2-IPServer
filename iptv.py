@@ -281,7 +281,7 @@ class Iptv(object):
                 dflist=df
 
         if(len(dflist)>0):
-            dflist['uniquename'].fillna(dflist['title'],inplace=True)   #如果没有标准名称，则设为title
+            dflist = dflist.assign(uniquename=dflist['uniquename'].fillna(dflist['title']))   #如果没有标准名称，则设为title
             playList=json.loads(dflist.to_json(orient='records'))
         
         return playList
@@ -299,65 +299,79 @@ class Iptv(object):
         return json.loads(playList)
 
     #检测播放节目列表
-    def checkPlayList(self, playlistQueue:Queue,threadNo=None,SpeedTest=1):
+    def checkPlayList(self, playlistQueue: Queue, threadNo=None, SpeedTest=1):
         '''
         :return: True or False
         验证每一个直播源，记录所有的delay值，超过delay_threshold的记为delay_threshold。
-        SpeedTest:=0不测速，>0测速，=720表示限制视频分辨率720p以下
+        SpeedTest:=0不测速，>0测速，=720表示限制视频分辨率低于720p的直播源不检测，但分辨率为0的仍检测
         '''
-        #total = len(playList)
-        #if (total <= 0): return False
-        if(threadNo == None):threadNo=threading.current_thread().ident
-        #for i in range(0, total):
+        if threadNo is None:
+            threadNo = threading.current_thread().ident
+
         while not playlistQueue.empty():
             try:
-                playList=playlistQueue.get(block=False)
+                playList = playlistQueue.get(block=False)
                 tmp_uniquename = playList['uniquename']
                 tmp_title = playList['title']
                 tmp_url = playList['url']
                 tvgroup = playList['tvgroup']
                 tvorder = playList['tvorder']
-                #self.__logger('Thread %d Checking[ %s / %s ]:%s,%s..' % (threadNo,i+1, total, tmp_title,tmp_url[:99]),end='.')
-                self.__logger('Thread %d Checking, leave[ %s ]:%s,%s..' % (threadNo, playlistQueue.qsize(), tmp_title,tmp_url[:99]),end='.')
-                netstat = self.T.chkPlayable(tmp_url)
-                if 0 < netstat < self.delay_threshold:
-                    if SpeedTest>0 :
-                        (speed,width,height,cformat) = utils.downloader.start(tmp_url,True,1)
-                        speed = speed /1024/1024
-                    else:
-                        (speed,width,height,cformat) =(0,0,0,"NaN")
-                    data = {
-                        'title': tmp_title,
-                        'uniquename':tmp_uniquename,
-                        'url': tmp_url,
-                        'delay': (netstat if (SpeedTest<100 or SpeedTest>height) else netstat+self.delay_threshold),
-                        'speed': "%s Mb/s" % "{:.2f}".format(speed) if speed > 0 else "NaN",
-                        'videosize': "%d*%d"% (width,height),
-                        'format':cformat,
-                        'tvgroup':tvgroup,
-                        'tvorder':tvorder,
-                    }
-                    self.addData(data)
 
+                self.__logger(f'Thread {threadNo} Checking, leave[ {playlistQueue.qsize()} ]:{tmp_title},{tmp_url[:99]}...', end='.')
+                netstat = self.T.chkPlayable(tmp_url)
+                
+                if 0 < netstat < self.delay_threshold:
+                    if SpeedTest > 0:
+                        speed, width, height, cformat = utils.downloader.start(tmp_url, True, 1)
+                        
+                        # 跳过分辨率低于 SpeedTest 的直播源，但保留分辨率为 0 的直播源
+                        if 0 < height < SpeedTest:
+                            self.__logger(f"Skipping {tmp_title} due to resolution {width}x{height} being lower than {SpeedTest}p.", end='\n')
+                            continue  # 跳过该直播源
+                            
+                        data = {
+                            'title': tmp_title,
+                            'uniquename': tmp_uniquename,
+                            'url': tmp_url,
+                            'delay': netstat,
+                            'speed': f"{speed:.2f} Mb/s" if speed > 0 else "NaN",
+                            'videosize': f"{width}*{height}",
+                            'format': cformat,
+                            'tvgroup': tvgroup,
+                            'tvorder': tvorder,
+                        }
+                    else:
+                        data = {
+                            'title': tmp_title,
+                            'uniquename': tmp_uniquename,
+                            'url': tmp_url,
+                            'delay': netstat,
+                            'speed': "NaN",
+                            'videosize': "",
+                            'format': "NaN",
+                            'tvgroup': tvgroup,
+                            'tvorder': tvorder,
+                        }
+                    self.addData(data)
                 else:
                     data = {
                         'title': tmp_title,
-                        'uniquename':tmp_uniquename,
+                        'uniquename': tmp_uniquename,
                         'url': tmp_url,
                         'delay': self.delay_threshold,
                         'speed': "NaN",
                         'videosize': "",
-                        'format':"NaN",
-                        'tvgroup':tvgroup,
-                        'tvorder':tvorder,
+                        'format': "NaN",
+                        'tvgroup': tvgroup,
+                        'tvorder': tvorder,
                     }
                     self.addData(data)
                     
-                self.__logger("(%s)%ds" % (data['videosize'],data['delay']),end='\n')
+                self.__logger(f"({data['videosize']}){data['delay']}s", end='\n')
             except Empty:
                 break
 
-        self.__logger("[%s] thread %d(%d) Exited"%(time.asctime(),threadNo,threading.current_thread().ident))
+        self.__logger(f"[{time.asctime()}] thread {threadNo}({threading.current_thread().ident}) Exited")
 
     def addData(self, data):
         self.__dbdata.append(data)
@@ -478,27 +492,27 @@ class Iptv(object):
             out = (
                     df.style
                     .set_properties(**{'text-align': 'center'})
-                    .applymap(color_cell, subset=['delay'])
+                    .map(color_cell, subset=['delay'])
                     .to_excel("./%s/%s.xlsx" % (self.output_file, title), index=False)
             )
             #df.to_csv("./%s/%s.txt" % (self.output_file, title),header=None,index=None,sep=',')
         return fnamelist
 
-    def sendit(self,fnames, destUris,sendtype=0):
+    def sendit(self, fnames, destUris, sendtype=0):
         ''' #output后续处理
             @fnames:对应文件路径列表
             @destUrls:目的地文件路径列表
             @sendtype:0，默认copy
         '''
-        if (sendtype==0):   #copy
-            for i in range(len(fnames)):
-                try:
-                    if(destUris[i]!=''):
-                        shutil.copy(fnames[i], destUris[i])
-                        self.__logger("file copy to "+destUris[i])
-                except Exception as e:
-                    self.__logger (e)
-                    self.__logger("Error occurred while copying file.")
+        if sendtype == 0:  # copy
+                for i in range(min(len(fnames), len(destUris))):  # 确保两者匹配
+                    try:
+                        if destUris[i] != '':
+                            shutil.copy(fnames[i], destUris[i])
+                            self.__logger("file copy to " + destUris[i])
+                    except Exception as e:
+                        self.__logger(e)
+                        self.__logger("Error occurred while copying file.")
         elif (sendtype==1):
             pass
             #self.__logger('直播源检测结束！', 'https://view.officeapps.live.com/op/view.aspx?src=%s/IPTV-M3U-Checker-Bot/%s/%s.xlsx' % (your_domain, self.output_file, title))
