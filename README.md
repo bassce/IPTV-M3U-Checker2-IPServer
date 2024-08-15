@@ -70,6 +70,7 @@ pip3 install requests
 pip3 install DingtalkChatbot
 pip3 install openpyxl
 pip3 install cv2, opencv-python
+pip3 install jinja2
 
 * 国内可以使用-i参数加快下载速度
 如：pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
