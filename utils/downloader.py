@@ -10,17 +10,17 @@ import time
 from urllib.request import urlopen
 try:
     import cv2
-    _g_CV2=True
+    _g_CV2 = True
 except ImportError:
-    _g_CV2=False
+    _g_CV2 = False
 
 class Downloader:
-    def __init__(self, url,m3url=None):
+    def __init__(self, url, m3url=None):
         self.url = url
         self.startTime = time.time()
         self.receive = 0
         self.endTime = None
-        self.m3url=m3url
+        self.m3url = m3url
 
     def getSpeed(self):
         if self.endTime and self.receive != -1:
@@ -28,111 +28,85 @@ class Downloader:
         else:
             return -1
 
-    def downloadTester(self,retry):
-        chunck_size = 10240
+    def downloadTester(self, retry):
+        chunk_size = 10240
         for i in range(retry):
             try:
                 resp = urlopen(self.url, timeout=2)
-                # max 5s
                 while time.time() - self.startTime < 5:
-                    chunk = resp.read(chunck_size)
+                    chunk = resp.read(chunk_size)
                     if not chunk:
                         break
-                    self.receive = self.receive + len(chunk)
+                    self.receive += len(chunk)
                 resp.close()
                 break
-            except BaseException as e:
-                print("downloadTester got an error %s,retry %d, %s\n" % (e,i+1,self.m3url))
-                self.receive = -1
-                #retry it
-                self.startTime=time.time()
-                
+            except Exception as e:
+                print(f"downloadTester encountered an error {e}, retry {i+1}, {self.m3url}")
+                self.receive = -1 # 标记失败
+                self.startTime = time.time() # 重置开始时间
+                if i == retry - 1:  # 如果达到最大重试次数，跳出循环
+                    print(f"Max retries reached for URL: {self.m3url}")
         self.endTime = time.time()
 
     def getVideoFormat(self):
-        video_url=self.url
-        width=0
-        height=0
-        cformat="NaN"
+        video_url = self.url
+        width = 0
+        height = 0
+        cformat = "NaN"
 
-        if(len(video_url)>0):
+        if len(video_url) > 0:
             try:
                 video = cv2.VideoCapture(video_url)
-                if(video.isOpened()):
+                if video.isOpened():
                     width = video.get(cv2.CAP_PROP_FRAME_WIDTH)
                     height = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                    frcc=int(video.get(cv2.CAP_PROP_FOURCC))
-                    c1=chr(frcc & 0xFF)
-                    c2=chr((frcc & 0xFF00)>>8)
-                    c3=chr((frcc & 0xFF0000)>>16)
-                    c4=chr((frcc & 0xFF000000)>>24)
-                    if(0x20<=c1 and c1<=0x7a and 0x20<=c2 and c2<=0x7a and 0x20<=c3 and c3<=0x7a and 0x20<=c4 and c4<=0x7a ): 
-                        cformat = "%c%c%c%c"%(c1,c2,c3,c4)
-                    else:
-                        cformat= "%x"%(frcc)
+                    frcc = int(video.get(cv2.CAP_PROP_FOURCC))
+                    cformat = f"{chr(frcc & 0xFF)}{chr((frcc & 0xFF00) >> 8)}{chr((frcc & 0xFF0000) >> 16)}{chr((frcc & 0xFF000000) >> 24)}"
                     video.release()
-            except:
-                pass
-        return (width,height,cformat)
+                if width == 0 or height == 0:
+                    print(f"Warning: Detected 0*0 resolution for {video_url}")
+            except Exception as e:
+                print(f"Error retrieving video format: {e}")
+        return width, height, cformat
 
 def getStreamUrl(m3u8):
     urls = []
-    if(m3u8.lower().endswith('.m3u8') == False):
-        urls.append(m3u8)
-        return urls
+    if not m3u8.lower().endswith('.m3u8'):
+        return [m3u8]
     try:
-        prefix = m3u8[0:m3u8.rindex('/') + 1]
-        with urlopen(m3u8, timeout=2) as resp:
-            top = False
-            second = False
-            firstLine = False
+        prefix = m3u8[:m3u8.rindex('/') + 1]
+        with urlopen(m3u8, timeout=5) as resp:
+            top, second = False, False
+            firstLine = True
             for line in resp:
-                line = line.decode('utf-8')
-                line = line.strip()
-                # 不是M3U文件，默认当做资源流
-                if firstLine and not '#EXTM3U' == line:
-                    urls.append(m3u8)
+                line = line.decode('utf-8').strip()
+                if firstLine:
                     firstLine = False
-                    break
+                    if line != '#EXTM3U':
+                        return [m3u8]
                 if top:
-                    # 递归
-                    if not line.lower().startswith('http'):
-                        line = prefix + line
+                    line = prefix + line if not line.lower().startswith('http') else line
                     urls += getStreamUrl(line)
                     top = False
                 if second:
-                    # 资源流
-                    if not line.lower().startswith('http'):
-                        line = prefix + line
+                    line = prefix + line if not line.lower().startswith('http') else line
                     urls.append(line)
                     second = False
                 if line.startswith('#EXT-X-STREAM-INF:'):
                     top = True
                 if line.startswith('#EXTINF:'):
                     second = True
-            resp.close()
-    except BaseException as e:
-        print('get stream url failed! %s' % e)
-    finally:
-        return urls
+    except Exception as e:
+        print(f'Failed to get stream url: {e}')
+    return urls
 
-
-def start(url,bChkFormat=False,retry=1):
-    stream_urls = []
-    if url.lower().endswith('.flv'):
-        stream_urls.append(url)
-    else:
-        stream_urls = getStreamUrl(url)
-    # 速度默认-1
-    speed = -1
-    width = 0
-    height= 0 
-    cformat="NaN"
-    if len(stream_urls) > 0:
-        stream = stream_urls[0]
-        downloader = Downloader(stream,url)
-        if(bChkFormat):
-            (width,height,cformat)=downloader.getVideoFormat()
+def start(url, bChkFormat=False, retry=3):
+    stream_urls = getStreamUrl(url) if not url.lower().endswith('.flv') else [url]
+    speed, width, height, cformat = -1, 0, 0, "NaN"
+    if stream_urls:
+        downloader = Downloader(stream_urls[0], url)
+        if bChkFormat:
+            width, height, cformat = downloader.getVideoFormat()
         downloader.downloadTester(retry)
         speed = downloader.getSpeed()
-    return (speed,width,height,cformat)
+    return speed, width, height, cformat
