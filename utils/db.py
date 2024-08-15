@@ -74,8 +74,9 @@ class DataBase (object) :
                     title nvarchar(30) not null primary key,
                     tvgroup nvarchar(30) null,
                     uniquename nvarchar(30) not null,
-                    memo text null,
-                    tvorder integer null )
+                    memo nvarchar(30) null,
+                    tvorder integer null ),
+                    Aliasesname nvarchar(50) null)
                 ''' #uniquename:唯一名,比如CCTV1,对应title可能是CCTV1,CCTV-1,CCTV1 综合频道
         self.cur.execute(sql)
         self.__tableStat=True
@@ -87,27 +88,25 @@ class DataBase (object) :
         if self.__connStat == False : return False
 
         try:
-            listinsheet=openpyxl.load_workbook(xlsfilename)
-            datainlist=listinsheet.active #获取excel文件当前表格
-            if(bReNew==True): 
+            listinsheet = openpyxl.load_workbook(xlsfilename)
+            datainlist = listinsheet.active  # 获取excel文件当前表格
+            if bReNew == True:
                 self.cur.execute("delete from tvorders ")
             else:
-                rows=self.cur.execute('select count(*) from tvorders where tvorder<9999')
-                count=rows.fetchone()[0]
-                if (count >0):
+                rows = self.cur.execute('select count(*) from tvorders where tvorder < 9999')
+                count = rows.fetchone()[0]
+                if count > 0:
                     return count
 
-            data_truck='''INSERT INTO tvorders(title,tvgroup,uniquename,memo,tvorder) 
-                        VALUES (?,?,?,?,?)'''
-            for row in datainlist.iter_rows(min_row=2,max_col=5,max_row=datainlist.max_row): 
-            #使excel各行数据成为迭代器
-                cargo=[cell.value for cell in row] #敲黑板！！使每行中单元格成为迭代器
-                if(cargo[0] != None):   #title
-                    self.cur.execute(data_truck,cargo) #敲黑板！写入一行数据到数据库中表mylist
+            data_truck = '''INSERT INTO tvorders(title,tvgroup,uniquename,memo,tvorder,Aliasesname) 
+                            VALUES (?,?,?,?,?,?)'''
+            for row in datainlist.iter_rows(min_row=2, max_col=6, max_row=datainlist.max_row):
+                cargo = [cell.value for cell in row]
+                if cargo[0] != None:  # title
+                    self.cur.execute(data_truck, cargo)
             self.conn.commit()
-            #print("导入节目排序表成功！")
-            
-            return datainlist.max_row-1
+
+            return datainlist.max_row - 1
         except Exception as e:
             self.__logger(e)
             return 0
@@ -124,7 +123,6 @@ class DataBase (object) :
     def querypd (self, sql) :
         '''查询并返回pandas dataframe对象'''
         if self.__connStat == False : return False
-
         return pd.read_sql(sql,self.conn)
 
     def execute (self, sql) :
@@ -184,25 +182,37 @@ class DataBase (object) :
         self.conn.close()
 
     #检查数据库表初始化是否完成，如未完成则自动建表
-    def chkTable (self) :
-        if self.__connStat == False : return False
+    def chkTable(self):
+        if not self.__connStat:
+            return False
         
-        ret=False
-        sql = "SELECT tbl_name FROM sqlite_master WHERE type='table'"
-        self.__tableStat = False
+        # 检查并创建 playlists 表
+        sql_playlists = f'''create table if not exists {self.table} 
+                            (id integer PRIMARY KEY autoincrement, 
+                            title nvarchar(30), 
+                            tvgroup nvarchar(30),
+                            url nvarchar(2048),
+                            uniquename nvarchar(30), 
+                            delay integer, 
+                            speed varchar(20), 
+                            videosize varchar(30),
+                            format varchar(50),
+                            tvorder integer null)'''
+        self.cur.execute(sql_playlists)
 
-        self.cur.execute(sql)
-        values = self.cur.fetchall()
+        # 检查并创建 tvorders 表
+        sql_tvorders = '''create table if not exists tvorders (
+                            title nvarchar(30) not null primary key,
+                            tvgroup nvarchar(30) null,
+                            uniquename nvarchar(30) not null,
+                            memo text null,
+                            tvorder integer null,
+                            Aliasesname nvarchar(50) null)'''
+        self.cur.execute(sql_tvorders)
 
-        for x in values:
-            if self.table in x :
-                self.__tableStat = True
-                break
+        self.conn.commit()
 
-        if self.__tableStat == False :
-            ret = self.__create()
-
-        return ret
+        return True
 
 if __name__ == '__main__':
     db = DataBase()

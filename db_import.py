@@ -4,42 +4,49 @@
 import sqlite3
 import openpyxl
 
-def import_tvorders(dbconn=None, xlsfilename=r'playlists/sortlist.xlsx', bDeleteOld=True):
+def import_tvorders(dbconn=None, xlsfilename=r'playlists/sortlist.xlsx',bDeleteOld=True):
     try:
-        conn = dbconn if (dbconn != None) else sqlite3.connect('database/db.sqlite3')
+        conn=dbconn if (dbconn != None) else sqlite3.connect('database\db.sqlite3')
+        
         try:
-            conn.execute('''CREATE TABLE IF NOT EXISTS tvorders (
-                                tvname NVARCHAR(30) NOT NULL PRIMARY KEY,
-                                tvgroup NVARCHAR(30) NULL,
-                                memo TEXT NULL,
-                                tvorder INT NULL)''')
+            conn.execute(\
+            '''
+            create table tvorders (
+                tvname nvarchar(30) not null primary key,
+                tvgroup nvarchar(30) null,
+                memo text null,
+                tvorder int null ),
+                Aliasesname nvarchar(30) null )
+                ''')
         except Exception as e:
-            print(e)
+            print("Table creation skipped:", e)
 
-        listinsheet = openpyxl.load_workbook(xlsfilename)
-        datainlist = listinsheet.active
-        if bDeleteOld:
-            conn.execute("DELETE FROM tvorders")
+        listinsheet=openpyxl.load_workbook(xlsfilename)
+        datainlist=listinsheet.active #获取excel文件当前表格
 
-        c = conn.cursor()
-        data_truck = '''INSERT OR IGNORE INTO tvorders(tvname,tvgroup,memo,tvorder) VALUES (?,?,?,?)'''
+        if(bDeleteOld==True): 
+            conn.execute("delete from tvorders ")
 
-        titles = set()  # 使用集合来确保唯一性
-        for row in datainlist.iter_rows(min_row=2, max_col=4, max_row=datainlist.max_row):
-            cargo = [cell.value for cell in row]
-            if cargo[0] not in titles:
-                titles.add(cargo[0])
-                c.execute(data_truck, cargo)
+        c=conn.cursor()
+        data_truck='''INSERT INTO tvorders(tvname,tvgroup,memo,tvorder,Aliasesname) 
+                    VALUES (?,?,?,?)'''
+        for row in datainlist.iter_rows(min_row=2,max_col=5,max_row=datainlist.max_row): 
+        #使excel各行数据成为迭代器
+            cargo=[cell.value for cell in row] #敲黑板！！使每行中单元格成为迭代器
+            c.execute(data_truck,cargo) #敲黑板！写入一行数据到数据库中表mylist
 
         conn.commit()
         print("导入节目排序表成功！")
-        
-        if dbconn == None:
+       
+        if(dbconn==None): 
             conn.close()
-        return datainlist.max_row - 1
+
+        return datainlist.max_row-1
+    
     except Exception as e:
-        print(e)
+        print("Error during import:", e)
         return 0
+
 
 if __name__ == '__main__':
     conn=sqlite3.connect('database\db.sqlite3') 
