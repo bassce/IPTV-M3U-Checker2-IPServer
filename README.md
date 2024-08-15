@@ -80,7 +80,7 @@ pip3 install jinja2
 - -"testspeed"：是否开启直播源连接速度测试，默认关闭（开启可能增加耗时与资源占用）
     - 0:关闭
     - 1:开启
-    - \>100:开启并且筛选分辨率低于该数字的作为无效来源
+    - 100以上:开启并且筛选分辨率低于该数字的作为无效来源，如720，代表720P以下分辨率的全部无效；1080代表1080以下分辨率的全部无效。所有分辨率为0的全部保留。
 - -"ctype":检查类型（可以组合）
     - 1 （0x01）：检查本地playlists文件夹下的.txt,.m3u文件
     - 2 （0x02）：检查外部文件，对应checkfile_list参数
@@ -173,13 +173,10 @@ pip3 install jinja2
 - 检测外部文件，同时按sortlists.xlsx文件进行限制：
 ```
 {
-    "testspeed":1,
-    "ctype":18,
-    "checkfile_list":["https://github.com/users/project1/raw/master/iptv.txt",
-                      "C:\\Users\\admin\\Desktop\\live.m3u"],
-    "otype":7,
-    "keywords":["江西"]
-  }
+    "testspeed": 1080,
+    "ctype": 1,
+    "otype": 4
+}
 ```
 
 - sortlists.xlsx文件修改：
