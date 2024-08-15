@@ -1,6 +1,6 @@
 {
-    "testspeed": 0,
+    "testspeed": 1,
     "ctype": 1,
-    "otype": 2,
+    "otype": 4,
     "iptv_server_mode": "yes"
 }
