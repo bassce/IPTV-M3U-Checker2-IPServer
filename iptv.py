@@ -481,7 +481,7 @@ class Iptv(object):
                     if 'Aliasesname' in df.columns:
                         grouped = df.groupby('Aliasesname')['url'].apply(list)
                         for alias, urls in grouped.items():
-                            file.write(f'{alias}:\n')
+                            file.write(f'{alias}:\n')  # 去掉频道名称的双引号
                             for url in urls:
                                 file.write(f"  - {url}\n")
                             file.write('\n')

@@ -70,14 +70,14 @@ class DataBase (object) :
                       format varchar(50),
                       tvorder integer null)'''
         self.cur.execute(sql)
-        sql ='''create table tvorders (
+        sql = '''create table tvorders (
                     title nvarchar(30) not null primary key,
                     tvgroup nvarchar(30) null,
                     uniquename nvarchar(30) not null,
                     memo nvarchar(30) null,
-                    tvorder integer null ),
-                    Aliasesname nvarchar(50) null)
-                ''' #uniquename:唯一名,比如CCTV1,对应title可能是CCTV1,CCTV-1,CCTV1 综合频道
+                    tvorder integer null,
+                    Aliasesname nvarchar(50) null
+                )'''
         self.cur.execute(sql)
         self.__tableStat=True
         return True

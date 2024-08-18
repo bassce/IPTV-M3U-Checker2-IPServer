@@ -15,5 +15,3 @@ class zyRobot(object):
  
     def send_link(self,title='', text='', message_url=''):
         print(message_url)
-
-

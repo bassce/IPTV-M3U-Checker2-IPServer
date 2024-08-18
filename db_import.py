@@ -15,9 +15,9 @@ def import_tvorders(dbconn=None, xlsfilename=r'playlists/sortlist.xlsx',bDeleteO
                 tvname nvarchar(30) not null primary key,
                 tvgroup nvarchar(30) null,
                 memo text null,
-                tvorder int null ),
-                Aliasesname nvarchar(30) null )
-                ''')
+                tvorder int null,
+                Aliasesname nvarchar(30) null
+            )
         except Exception as e:
             print("Table creation skipped:", e)
 
@@ -29,8 +29,8 @@ def import_tvorders(dbconn=None, xlsfilename=r'playlists/sortlist.xlsx',bDeleteO
 
         c=conn.cursor()
         data_truck='''INSERT INTO tvorders(tvname,tvgroup,memo,tvorder,Aliasesname) 
-                    VALUES (?,?,?,?)'''
-        for row in datainlist.iter_rows(min_row=2,max_col=5,max_row=datainlist.max_row): 
+                    VALUES (?,?,?,?,?)'''
+        for row in datainlist.iter_rows(min_row=2,max_col=6,max_row=datainlist.max_row): 
         #使excel各行数据成为迭代器
             cargo=[cell.value for cell in row] #敲黑板！！使每行中单元格成为迭代器
             c.execute(data_truck,cargo) #敲黑板！写入一行数据到数据库中表mylist
