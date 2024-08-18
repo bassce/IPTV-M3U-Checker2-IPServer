@@ -43,11 +43,14 @@ class Iptv(object):
         self.DB.chkTable()  # 检查并创建所需的表
         self.set_tvorders(bReNew=True)
         try:
-            ret = requests.get(url='https://6.ipw.cn')
+            ret = requests.get('https://v6.ip.zxinc.org/getip', timeout=10)
             if ret.status_code == 200:
-                self.ipv6addr = ret.text
-        except:
-            pass
+                self.ipv6addr = ret.text.strip()
+                self.__logger(f"IPv6 address: {self.ipv6addr}")
+            else:
+                self.__logger("无法获取IPv6地址，状态码: {ret.status_code}")
+        except requests.RequestException as e:
+            self.__logger(f"请求IPv6地址时发生错误: {e}")
 
     def set_tvorders(self,xlsfilename=r'playlists/sortlist.xlsx',bReNew=True):
         '''
@@ -498,26 +501,23 @@ class Iptv(object):
             #df.to_csv("./%s/%s.txt" % (self.output_file, title),header=None,index=None,sep=',')
         return fnamelist
 
-    def sendit(self,fnames, destUris,sendtype=0):
+    def sendit(self, fnames, destUris, sendtype=0):
         ''' #output后续处理
             @fnames:对应文件路径列表
             @destUrls:目的地文件路径列表
             @sendtype:0，默认copy
         '''
-        if (sendtype==0):   #copy
+        if len(fnames) == len(destUris):
             for i in range(len(fnames)):
-                try:
-                    if(destUris[i]!=''):
+                if destUris[i]:
+                    try:
                         shutil.copy(fnames[i], destUris[i])
-                        self.__logger("file copy to "+destUris[i])
-                except Exception as e:
-                    self.__logger (e)
-                    self.__logger("Error occurred while copying file.")
-        elif (sendtype==1):
-            pass
-            #self.__logger('直播源检测结束！', 'https://view.officeapps.live.com/op/view.aspx?src=%s/IPTV-M3U-Checker-Bot/%s/%s.xlsx' % (your_domain, self.output_file, title))
+                        self.__logger(f"file copied to {destUris[i]}")
+                    except Exception as e:
+                        self.__logger(f"Error copying file: {e}")
         else:
-            pass
+            self.__logger("Mismatch between source and destination file lists.")
+
 
 
     def runcheck(self,playList,bSavedb=True, bTestSpeed=True, threadCount=5):

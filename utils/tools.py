@@ -13,6 +13,7 @@ import urllib.error
 import socket
 import time
 import os
+from urllib.parse import urlparse
 
 socket.setdefaulttimeout(5.0)
 
@@ -26,7 +27,7 @@ class Tools (object) :
         for i in ls:
             c_path = os.path.join(path, i)
             if os.path.isdir(c_path):
-                del_file(c_path)
+                self.del_file(c_path)
             else:
                 os.remove(c_path)
 
@@ -53,6 +54,12 @@ class Tools (object) :
 
     def chkPlayable (self, url) :
         try:
+            # 处理 IPv6 地址
+            parsed_url = urlparse(url)
+            if ':' in parsed_url.netloc and not parsed_url.netloc.startswith('['):
+                parsed_url = parsed_url._replace(netloc=f"[{parsed_url.netloc}]")
+            url = parsed_url.geturl()
+
             startTime = int(round(time.time() * 1000))
             code = urllib.request.urlopen(url).getcode()
             if code == 200 :
