@@ -8,23 +8,18 @@ ENV PYTHONUNBUFFERED=1
 # 设置工作目录
 WORKDIR /app
 
-# 安装必要的工具和依赖
-RUN apt-get update && apt-get install -y \
-    git \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    && apt-get clean
+# 安装必要的工具
+RUN apt-get update && apt-get install -y git && apt-get clean
 
-# 克隆指定的 GitHub 仓库到当前目录，而不是创建子目录
-RUN git clone --depth 1 https://github.com/bassce/IPTV-M3U-Checker2-IPServer.git .
+# 克隆项目代码（如果不希望在/app下创建子目录，可以使用以下方法）
+RUN git clone --depth 1 https://github.com/bassce/IPTV-M3U-Checker2-IPServer.git /app
 
-# 安装 Python 依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 安装所需的 Python 包
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# 单独安装 opencv-python
-RUN pip install opencv-python-headless
+# 映射宿主机文件夹到容器
+VOLUME /app/output
+VOLUME /app/playlists
 
-# 定义容器启动时的命令，重新拉取最新代码并运行
-CMD git pull origin main && python /app/main.py
+# 设定启动时的命令，先拉取最新代码再运行
+CMD git -C /app pull origin main && python /app/main.py
