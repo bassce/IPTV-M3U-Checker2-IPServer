@@ -1,6 +1,6 @@
-opencv-python
+opencv-contrib-python-headless
 requests
 pandas
 openpyxl
-cv2
 jinja2
+DingtalkChatbot
