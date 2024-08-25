@@ -104,9 +104,9 @@ class Iptv(object):
         '''
         sql='select uniquename,title from tvorders where tvorder<9999'
         df = self.DB.querypd(sql)
-        df.set_index('title',inplace=True)
+        df = df.set_index('title')
         dflist=pd.DataFrame(list_obj)
-        dflist.set_index('title',inplace=True)
+        dflist = dflist.set_index('title')
         dflist['uniquename']=dflist['title'].map(df)
         '''
             
@@ -168,73 +168,60 @@ class Iptv(object):
 
         for p in files:
             if os.path.isfile(p):
-                if(p.lower() .endswith('.m3u')==True):
-                    filetype='m'
-                elif(p.lower() .endswith('.txt')==True):
-                    filetype='t'
-                else:
+                filetype = 'm' if p.lower().endswith('.m3u') else 't' if p.lower().endswith('.txt') else None
+                if not filetype:
                     continue
+
                 with open(p, 'r', encoding='utf-8') as f:
                     self.__logger("file:"+p+",ext="+filetype)
                     lines = f.readlines()
-                    if(1>2):#filetype=='t'):
-                        total = len(lines)
-                        for i in range(0, total):
-                            line = lines[i].strip('\n')
-                            item = line.split(',', 1)
-                            if len(item) == 2:
-                                data = {
-                                    'title': item[0],
-                                    'url': item[1],
-                                    'uniquename':item[0],
-                                    'delay':99999,
-                                }
-                                playList.append(data)
-                                #urlList.append(data['url'])
-                    else:
-                        title=None
-                        url=None
-                        tvgroup='Default'
-                        for line in lines:
-                            line = line.strip('\n')
-                            item = line.split(',', 1)
+
+                    title = None
+                    url = None
+                    tvgroup = 'Default'
+
+                    for line in lines:
+                        # 去除每行前后多余的空格
+                        line = line.strip()
+
+                        # 处理行中的多余空格 (可选：如果要去除行中多余的空格)
+                        line = ' '.join(line.split())
+
+                        item = line.split(',', 1)                    
                             
-                            if (item[0][:8] == '#EXTINF:'):
-                                title = item[1]
-                            elif (item[0][:4].lower() == 'http'):
-                                url = item[0]
-                            elif (len(item)==2):
-                                if(item[1][:4].lower()== 'http'):
-                                    title=item[0]
-                                    url  =item[1]
-                                elif(item[1][:7]=='#genre#'):
-                                    tvgroup=item[0]
-                                    title=None
-                                else:
-                                    continue
+                        if item[0][:8] == '#EXTINF:':
+                            title = item[1].strip()
+                        elif item[0][:4].lower() == 'http':
+                            url = item[0].strip()
+                        elif len(item) == 2:
+                            if item[1][:4].lower() == 'http':
+                                title = item[0].strip()
+                                url = item[1].strip()
+                            elif item[1][:7] == '#genre#':
+                                tvgroup = item[0].strip()
+                                title = None
                             else:
                                 continue
-                            if(title != None and url != None):
-                                url_list =self.split_urls(url)  #情况1.允许url=url1#url2...格式
-                                for urlitem in url_list:
-                                    data = {
-                                        'title': title,
-                                        'url': urlitem,
-                                        'tvgroup':tvgroup,
-                                        'uniquename':title,
-                                        'delay':99999,
-                                    }
-                                    playList.append(data)
-                                    #urlList.append(data['url'])
-                                #title=None     #情况2.允许url分割在多行
-                                url=None
-        #playList=playList[:self.MaxSourceCount]
-        #urlList=urlList[:self.MaxSourceCount]
+                        else:
+                            continue
+
+                        if title and url:
+                            url_list = self.split_urls(url)  # 处理url=url1#url2...格式
+                            for urlitem in url_list:
+                                data = {
+                                    'title': title,
+                                    'url': urlitem,
+                                    'tvgroup': tvgroup,
+                                    'uniquename': title,
+                                    'delay': 99999,
+                                }
+                                playList.append(data)
+                            url = None
         
         if(len(playList)>0):
             #去除url重复的行
             df=pd.DataFrame(playList)
-            df.drop_duplicates(subset=['url'],inplace=True)
+            df = df.drop_duplicates(subset=['url'])
             #如果不支持ipv6则去除
             if(self.ipv6addr==''):
                 df=df.query("url.str.contains('://\\[', regex=True) == False", engine='python')
@@ -248,7 +235,7 @@ class Iptv(object):
             #去除tvorders不检查的行
             dftvorders=self.DB.querypd('select title,uniquename,tvgroup,tvorder,Aliasesname from tvorders where tvorder<9999')
             dflist=pd.merge(df,dftvorders,how='inner',on='title')
-            dflist.rename(columns={'uniquename_y':'uniquename','tvgroup_y':'tvgroup', 'Aliasesname': 'Aliasesname'},inplace=True)
+            dflist = dflist.rename(columns={'uniquename_y': 'uniquename', 'tvgroup_y': 'tvgroup', 'Aliasesname': 'Aliasesname'})
 
             #再加上关键字清单内的节目
             if(len(df2)>0):
@@ -256,6 +243,7 @@ class Iptv(object):
 
             #去除>MaxSourceCount的多余行 
             dflist=dflist[:self.MaxSourceCount]
+            dflist = dflist.drop(columns=['uniquename_x', 'tvgroup_x'])
 
             '''
             if(ctype & 0x08 >0 ):   #仅测试
@@ -276,9 +264,9 @@ class Iptv(object):
             dflist=self.DB.querypd(f'select * from {tmp_table} where delay=99999')
             df=self.DB.querypd(f'select title,uniquename,tvorder from tvorders where tvorder<9999 ')
             dflist=pd.merge(dflist,df,how='left',on='title')
-            dflist.rename(columns={'uniquename_y':'uniquename'},inplace=True)
+            dflist = dflist.rename(columns={'uniquename_y': 'uniquename'})
             '''
-            dflist.drop(columns=['uniquename_x','tvgroup_x'],inplace=True)
+            
         else:
             dflist=pd.DataFrame()
         
@@ -286,13 +274,13 @@ class Iptv(object):
             df= self.DB.querypd(f'select * from {self.DB.table} where delay<99999 ')
             if(len(dflist)>0):
                 dflist=pd.concat([dflist,df])
-                dflist.drop_duplicates(subset=['url'],inplace=True)
+                dflist = dflist.drop_duplicates(subset=['url'])
                 dflist=dflist[:self.MaxSourceCount]
             else:
                 dflist=df
 
         if(len(dflist)>0):
-            dflist['uniquename'].fillna(dflist['title'],inplace=True)   #如果没有标准名称，则设为title
+            dflist['uniquename'] = dflist['uniquename'].fillna(dflist['title'])   #如果没有标准名称，则设为title
             playList=json.loads(dflist.to_json(orient='records'))
         
         return playList
@@ -310,65 +298,80 @@ class Iptv(object):
         return json.loads(playList)
 
     #检测播放节目列表
-    def checkPlayList(self, playlistQueue:Queue,threadNo=None,SpeedTest=1):
+    def checkPlayList(self, playlistQueue: Queue, threadNo=None, SpeedTest=1):
         '''
         :return: True or False
         验证每一个直播源，记录所有的delay值，超过delay_threshold的记为delay_threshold。
-        SpeedTest:=0不测速，>0测速，=720表示限制视频分辨率720p以下
+        SpeedTest:=0不测速，>0测速，=720表示限制视频分辨率低于720p的直播源不检测，但分辨率为0的仍检测。
         '''
-        #total = len(playList)
-        #if (total <= 0): return False
-        if(threadNo == None):threadNo=threading.current_thread().ident
-        #for i in range(0, total):
+        if threadNo is None:
+            threadNo = threading.current_thread().ident
+
         while not playlistQueue.empty():
             try:
-                playList=playlistQueue.get(block=False)
+                playList = playlistQueue.get(block=False)
                 tmp_uniquename = playList['uniquename']
                 tmp_title = playList['title']
                 tmp_url = playList['url']
                 tvgroup = playList['tvgroup']
                 tvorder = playList['tvorder']
-                #self.__logger('Thread %d Checking[ %s / %s ]:%s,%s..' % (threadNo,i+1, total, tmp_title,tmp_url[:99]),end='.')
-                self.__logger('Thread %d Checking, leave[ %s ]:%s,%s..' % (threadNo, playlistQueue.qsize(), tmp_title,tmp_url[:99]),end='.')
-                netstat = self.T.chkPlayable(tmp_url)
-                if 0 < netstat < self.delay_threshold:
-                    if SpeedTest>0 :
-                        (speed,width,height,cformat) = utils.downloader.start(tmp_url,True,1)
-                        speed = speed /1024/1024
-                    else:
-                        (speed,width,height,cformat) =(0,0,0,"NaN")
-                    data = {
-                        'title': tmp_title,
-                        'uniquename':tmp_uniquename,
-                        'url': tmp_url,
-                        'delay': (netstat if (SpeedTest<100 or SpeedTest>height) else netstat+self.delay_threshold),
-                        'speed': "%s Mb/s" % "{:.2f}".format(speed) if speed > 0 else "NaN",
-                        'videosize': "%d*%d"% (width,height),
-                        'format':cformat,
-                        'tvgroup':tvgroup,
-                        'tvorder':tvorder,
-                    }
-                    self.addData(data)
 
+                self.__logger(f'Thread {threadNo} Checking, leave[ {playlistQueue.qsize()} ]:{tmp_title},{tmp_url[:99]}...', end='.')
+                netstat = self.T.chkPlayable(tmp_url)
+
+                if 0 < netstat < self.delay_threshold:
+                    if SpeedTest > 0:
+                        speed, width, height, cformat = utils.downloader.start(tmp_url, True, 1)
+                        speed = speed / 1024 / 1024
+
+                        # 跳过分辨率低于 SpeedTest 的直播源，但保留分辨率为 0 的直播源
+                        if 0 < height < SpeedTest:
+                            self.__logger(f"Skipping {tmp_title} due to resolution {height}px below {SpeedTest}px threshold.", end='\n')
+                            continue  # 跳过该直播源
+
+                        data = {
+                            'title': tmp_title,
+                            'uniquename': tmp_uniquename,
+                            'url': tmp_url,
+                            'delay': netstat,
+                            'speed': f"{speed:.2f} Mb/s" if speed > 0 else "NaN",
+                            'videosize': f"{width}*{height}",
+                            'format': cformat,
+                            'tvgroup': tvgroup,
+                            'tvorder': tvorder,
+                        }
+                    else:
+                        data = {
+                            'title': tmp_title,
+                            'uniquename': tmp_uniquename,
+                            'url': tmp_url,
+                            'delay': netstat,
+                            'speed': "NaN",
+                            'videosize': "",
+                            'format': "NaN",
+                            'tvgroup': tvgroup,
+                            'tvorder': tvorder,
+                        }
+                    self.addData(data)
                 else:
                     data = {
                         'title': tmp_title,
-                        'uniquename':tmp_uniquename,
+                        'uniquename': tmp_uniquename,
                         'url': tmp_url,
                         'delay': self.delay_threshold,
                         'speed': "NaN",
                         'videosize': "",
-                        'format':"NaN",
-                        'tvgroup':tvgroup,
-                        'tvorder':tvorder,
+                        'format': "NaN",
+                        'tvgroup': tvgroup,
+                        'tvorder': tvorder,
                     }
                     self.addData(data)
-                    
-                self.__logger("(%s)%ds" % (data['videosize'],data['delay']),end='\n')
+
+                self.__logger(f"({data['videosize']}){data['delay']}s", end='\n')
             except Empty:
                 break
 
-        self.__logger("[%s] thread %d(%d) Exited"%(time.asctime(),threadNo,threading.current_thread().ident))
+        self.__logger(f"[{time.asctime()}] thread {threadNo}({threading.current_thread().ident}) Exited")
 
     def addData(self, data):
         self.__dbdata.append(data)
@@ -380,32 +383,42 @@ class Iptv(object):
         self.DB.insert(self.__dbdata)
             
     #@property
-    def output(self,ctype=0x01,iptv_server_mode="no"):
+    def output(self, ctype=0x01, iptv_server_mode="no"):
         '''#输出检测结果
             oytpe:文件格式,包括：
-                       0x01(001b):diyp播放器（缺省）
-                       0x02(010b):m3u标准格式
-                       0x04(100b):txt标准格式
-                       0x08:测试模式。
-                       可以是以上混合
+                    0x01(001b):diyp播放器（缺省）
+                    0x02(010b):m3u标准格式
+                    0x04(100b):txt标准格式
+                    0x08:测试模式。
+                    可以是以上混合
             iptv_server_mode: 控制是否生成iptv-server.yml文件（yes/no）
         '''
-        #sql = "SELECT * FROM %s WHERE delay='%d' " % (self.DB.table,self.delay_threshold)
-        #result = self.DB.query(sql)
-        i=0
-        for row in self.__dbdata:
-            if(row['delay']>=self.delay_threshold):
-                i=i+1
-        self.__logger('共检测得 %s/%s 个无效直播源！' % (i,len(self.__dbdata)) )
-        
-        df=pd.DataFrame(self.__dbdata)
-        #sql = "SELECT p.* from %s p left join tvorders o on p.title=o.title and o.tvorder<9999 order by p.tvgroup,o.tvorder,p.title " % (self.DB.table)
-        #df = self.DB.querypd(sql)
+        # 统计无效直播源数量
+        invalid_count = sum(1 for row in self.__dbdata if row['delay'] >= self.delay_threshold)
+        self.__logger(f'共检测得 {invalid_count}/{len(self.__dbdata)} 个无效直播源！')
 
-        # 将 playlists 表和 tvorders 表进行合并，确保 df 中包含 Aliasesname 列
+        # 将数据转换为 DataFrame
+        df = pd.DataFrame(self.__dbdata)
+
+        # 检查 'title' 列是否存在
+        if 'title' not in df.columns:
+            self.__logger("Error: 'title' column is missing in the DataFrame.")
+            return []
+
+        # 从数据库获取 tvorders 数据并合并
         df_tvorders = self.DB.querypd('SELECT title, Aliasesname FROM tvorders')
+        if 'title' not in df_tvorders.columns:
+            self.__logger("Error: 'title' column is missing in the tvorders DataFrame.")
+            return []
+
         df = pd.merge(df, df_tvorders, how='left', on='title')
 
+        # 如果合并后的 DataFrame 为空，直接返回
+        if df.empty:
+            self.__logger('No valid data to output after merge.')
+            return []
+
+        # 对 delay 列进行颜色标记
         def color_cell(cell):
             if cell == self.delay_threshold:
                 return 'background-color: #DC143C'
@@ -418,87 +431,92 @@ class Iptv(object):
             else:
                 return 'background-color: #008000'
 
-        if(len(df)>0):
-            df.sort_values(by=["tvgroup","tvorder"],ascending=True,inplace=True)
-            df=df.query(f'delay<{self.delay_threshold}').reset_index(drop=True)
-        
-        fnamelist=[]
-        if(len(df)>0):
+        # 排序并筛选数据
+        df = df.sort_values(by=["tvgroup", "tvorder"], ascending=True)
+        df = df.query(f'delay < {self.delay_threshold}').reset_index(drop=True)
+
+        fnamelist = []
+        if not df.empty:
             self.T.mkdir(self.output_file)
             self.T.del_file(self.output_file)
-            title = time.strftime("%Y%m%d_%H%M%S", time.localtime())  #+ '_' + secrets.token_urlsafe(16)
+            title = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 
-            if(ctype & 0x01 >0):   #'diyp'        
-                fname="./%s/diyp%s.txt" % (self.output_file, title)
+            # 生成 diyp 文件
+            if ctype & 0x01 > 0:
+                fname = f"./{self.output_file}/diyp{title}.txt"
                 with open(fname, 'w', encoding='utf-8') as file:
-                    tvgroup=''
-                    prev_uniquename=''
-                    for i in df.index:                
-                        if(tvgroup != df['tvgroup'][i]):
-                            file.write('\n'+ df['tvgroup'][i] + ',#genre#\n')
-                            tvgroup=df['tvgroup'][i]
-                            seps=''
+                    tvgroup = ''
+                    prev_uniquename = ''
+                    for i in df.index:
+                        if tvgroup != df['tvgroup'][i]:
+                            file.write(f'\n{df["tvgroup"][i]},#genre#\n')
+                            tvgroup = df['tvgroup'][i]
+                            seps = ''
                         else:
-                            seps='\n'
-                        if(i>0 and prev_uniquename==df['uniquename'][i]): 
-                            file.write('#'+df['url'][i])
+                            seps = '\n'
+                        if i > 0 and prev_uniquename == df['uniquename'][i]:
+                            file.write(f'#{df["url"][i]}')
                         else:
-                            prev_uniquename=df['uniquename'][i]
-                            file.write(seps+prev_uniquename+','+df['url'][i])
+                            prev_uniquename = df['uniquename'][i]
+                            file.write(f'{seps}{prev_uniquename},{df["url"][i]}')
                     file.write('\n')
                     fnamelist.append(fname)
 
-            if(ctype & 0x02 >0 ):   #'txt'        
-                fname="./%s/%s.txt" % (self.output_file, title)
+            # 生成 txt 文件
+            if ctype & 0x02 > 0:
+                fname = f"./{self.output_file}/{title}.txt"
                 with open(fname, 'w', encoding='utf-8') as file:
-                    tvgroup=''
-                    for i in df.index:                
-                        if(tvgroup != df['tvgroup'][i]):
-                            file.write('\n'+ df['tvgroup'][i] + ',#genre#\n')
-                            tvgroup=df['tvgroup'][i]
-                            seps=''
+                    tvgroup = ''
+                    for i in df.index:
+                        if tvgroup != df['tvgroup'][i]:
+                            file.write(f'\n{df["tvgroup"][i]},#genre#\n')
+                            tvgroup = df['tvgroup'][i]
+                            seps = ''
                         else:
-                            seps='\n'
-                        prev_uniquename=df['uniquename'][i]
-                        file.write(seps+prev_uniquename+','+df['url'][i])
+                            seps = '\n'
+                        prev_uniquename = df['uniquename'][i]
+                        file.write(f'{seps}{prev_uniquename},{df["url"][i]}')
                     file.write('\n')
                     fnamelist.append(fname)
 
-            if(ctype & 0x04 >0):   #'m3u'        
-                fname="./%s/%s.m3u" % (self.output_file, title)
+            # 生成 m3u 文件
+            if ctype & 0x04 > 0:
+                fname = f"./{self.output_file}/{title}.m3u"
                 with open(fname, 'w', encoding='utf-8') as file:
-                    tvgroup=''
-                    prev_uniquename=''
-                    tvlogo=''
+                    tvgroup = ''
+                    prev_uniquename = ''
+                    tvlogo = ''
                     file.write('#EXTM3U\n')
                     for i in df.index:
-                        tvgroup=df['tvgroup'][i]                
-                        prev_uniquename=df['uniquename'][i]                        
-                        line=f'#EXTINF:-1 tvg-name="{prev_uniquename}" {tvlogo} group-title="{tvgroup}",{prev_uniquename}\n'
-                        file.write(line +df['url'][i] + '\n')
+                        tvgroup = df['tvgroup'][i]
+                        prev_uniquename = df['uniquename'][i]
+                        line = f'#EXTINF:-1 tvg-name="{prev_uniquename}" {tvlogo} group-title="{tvgroup}",{prev_uniquename}\n'
+                        file.write(f'{line}{df["url"][i]}\n')
                     fnamelist.append(fname)
 
+            # 生成 iptv-server.yml 文件
             if iptv_server_mode.lower() == "yes":
-                fname_aggregate = "./%s/iptv-server.yml" % self.output_file
+                fname_aggregate = f"./{self.output_file}/iptv-server.yml"
                 with open(fname_aggregate, 'w', encoding='utf-8') as file:
                     if 'Aliasesname' in df.columns:
                         grouped = df.groupby('Aliasesname')['url'].apply(list)
                         for alias, urls in grouped.items():
-                            file.write(f'{alias}:\n')  # 去掉频道名称的双引号
+                            file.write(f'{alias}:\n')
                             for url in urls:
                                 file.write(f"  - {url}\n")
                             file.write('\n')
                     else:
-                        print("Error: 'Aliasesname' column not found in data.")
+                        self.__logger("Error: 'Aliasesname' column not found in data.")
                 fnamelist.append(fname_aggregate)
 
+            # 生成 Excel 文件
             out = (
-                    df.style
-                    .set_properties(**{'text-align': 'center'})
-                    .applymap(color_cell, subset=['delay'])
-                    .to_excel("./%s/%s.xlsx" % (self.output_file, title), index=False)
+                df.style
+                .set_properties(**{'text-align': 'center'})
+                .applymap(color_cell, subset=['delay'])
+                .to_excel(f"./{self.output_file}/{title}.xlsx", index=False)
             )
-            #df.to_csv("./%s/%s.txt" % (self.output_file, title),header=None,index=None,sep=',')
+
         return fnamelist
 
     def sendit(self, fnames, destUris, sendtype=0):

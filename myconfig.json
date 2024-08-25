@@ -2,5 +2,12 @@
     "testspeed": 720,
     "ctype": 1,
     "otype": 4,
-    "iptv_server_mode": "yes"
+    "iptv_server_mode": "yes",
+    "checkfile_list": "",
+    "sendfile_list": "",
+    "max_check_count": 2000,
+    "webhook": "",
+    "secret": "",
+    "your_domain": "",
+    "delay_threshold": 2000
 }
